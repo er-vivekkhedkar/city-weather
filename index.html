@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Application</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="card">
+        <div class="search">
+            <input type="text" placeholder="Enter city name" spellcheck="false">
+            <button><img src="images/search.png" alt="search"></button>
+        </div>
+        <div class="suggestions" style="display: none;">
+            <!-- Suggestions will appear here dynamically -->
+        </div>
+        <div class="error" style="display: none;">
+            <p>Invalid city name</p>
+        </div>
+        <div class="weather" style="display: none;">
+            <img src="images/rain.png" class="weather-icon">
+            <h1 class="temp">22°c</h1>
+            <h2 class="city">New York</h2>
+            <div class="details">
+                <div class="col">
+                    <img src="images/humidity.png" alt="humidity">
+                    <div>
+                        <p class="humidity">50%</p>
+                        <p>Humidity</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <img src="images/wind.png" alt="wind">
+                    <div>
+                        <p class="wind">15 km/h</p>
+                        <p>Wind Speed</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const apiKey = "059d9800169eb782c2324a9c96ec6ec2";
+        const apiUrl = `https://api.openweathermap.org/data/2.5/weather?units=metric&q=`;
+
+        const searchBox = document.querySelector(".search input");
+        const searchBtn = document.querySelector(".search button");
+        const weatherIcon = document.querySelector(".weather-icon");
+        const suggestionsBox = document.querySelector(".suggestions");
+        const errorBox = document.querySelector(".error");
+        const weatherBox = document.querySelector(".weather");
+
+        // Function to fetch weather by city name
+        async function checkWeather(city) {
+            const response = await fetch(`${apiUrl}${city}&appid=${apiKey}`);
+
+            if (response.status == 404) {
+                errorBox.style.display = "block";
+                weatherBox.style.display = "none";
+            } else {
+                const data = await response.json();
+                displayWeather(data);
+            }
+        }
+
+        // Function to display weather data
+        function displayWeather(data) {
+            document.querySelector(".city").innerHTML = data.name;
+            document.querySelector(".temp").innerHTML = Math.round(data.main.temp) + "°c";
+            document.querySelector(".humidity").innerHTML = data.main.humidity + "%";
+            document.querySelector(".wind").innerHTML = data.wind.speed + " km/h";
+
+            switch (data.weather[0].main) {
+                case "Clouds":
+                    weatherIcon.src = "images/clouds.png";
+                    break;
+                case "Clear":
+                    weatherIcon.src = "images/clear.png";
+                    break;
+                case "Rain":
+                    weatherIcon.src = "images/rain.png";
+                    break;
+                case "Drizzle":
+                    weatherIcon.src = "images/drizzle.png";
+                    break;
+                case "Mist":
+                    weatherIcon.src = "images/mist.png";
+                    break;
+                case "Snow":
+                    weatherIcon.src = "images/snow.png";
+                    break;
+                default:
+                    weatherIcon.src = "images/clear.png";
+                    break;
+            }
+
+            weatherBox.style.display = "block";
+            errorBox.style.display = "none";
+        }
+
+        // Function to get user's current location and fetch weather
+        function getUserLocationWeather() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(async (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+
+                    const locationResponse = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`);
+                    const data = await locationResponse.json();
+                    displayWeather(data);
+                });
+            } else {
+                alert("Geolocation is not supported by this browser.");
+            }
+        }
+
+        // Automatically request the user's location on page load
+        window.onload = getUserLocationWeather;
+
+        // Event listener for search button
+        searchBtn.addEventListener("click", () => {
+            checkWeather(searchBox.value);
+        });
+
+        // Event listener for search input to show suggestions
+        searchBox.addEventListener("input", async () => {
+            const query = searchBox.value.trim();
+            if (query.length > 0) {
+                // Get suggestions based on user input (Indian cities prioritized)
+                const suggestionResponse = await fetch(`https://api.openweathermap.org/data/2.5/find?q=${query}&type=like&sort=population&appid=${apiKey}`);
+                const suggestionData = await suggestionResponse.json();
+
+                // Clear previous suggestions
+                suggestionsBox.innerHTML = "";
+
+                if (suggestionData.list) {
+                    suggestionData.list.forEach(city => {
+                        const suggestionItem = document.createElement("div");
+                        suggestionItem.classList.add("suggestion-item");
+                        suggestionItem.textContent = city.name;
+
+                        suggestionItem.addEventListener("click", () => {
+                            searchBox.value = city.name;
+                            checkWeather(city.name);
+                            suggestionsBox.style.display = "none"; // Hide suggestions after selection
+                        });
+
+                        suggestionsBox.appendChild(suggestionItem);
+                    });
+                }
+
+                // Show the suggestion box if there are suggestions
+                suggestionsBox.style.display = suggestionData.list && suggestionData.list.length > 0 ? "block" : "none";
+            } else {
+                suggestionsBox.style.display = "none";
+            }
+        });
+    </script>
+</body>
+
+</html>
